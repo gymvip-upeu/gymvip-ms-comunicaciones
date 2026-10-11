@@ -1,0 +1,9 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: gymvip-comunicaciones
+
+comms:
+  mode: simulation
