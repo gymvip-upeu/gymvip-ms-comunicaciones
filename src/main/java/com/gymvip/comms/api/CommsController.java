@@ -1,24 +1,26 @@
 package com.gymvip.comms.api;
 
 import com.gymvip.comms.domain.EmailSender;
-import com.gymvip.comms.domain.WhatsAppSender;
+import com.gymvip.comms.domain.WhatsAppService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/messages")
 public class CommsController {
 
     private final EmailSender emailSender;
-    private final WhatsAppSender whatsAppSender;
+    private final WhatsAppService whatsAppService;
 
-    public CommsController(EmailSender emailSender, WhatsAppSender whatsAppSender) {
+    public CommsController(EmailSender emailSender, WhatsAppService whatsAppService) {
         this.emailSender = emailSender;
-        this.whatsAppSender = whatsAppSender;
+        this.whatsAppService = whatsAppService;
     }
 
     public record SendEmailRequest(
@@ -28,15 +30,20 @@ public class CommsController {
             Map<String, Object> variables
     ) {}
 
-    public record SendWhatsAppRequest(
+    public record SendWhatsAppMessageRequest(
+            String requestId,
             @NotBlank(message = "Teléfono obligatorio") String phoneNumber,
             @NotBlank(message = "Plantilla obligatoria") String templateName,
             String language,
-            List<String> parameters
+            List<String> parameters,
+            Boolean consentWhatsapp,
+            UUID clientId,
+            String clientName,
+            UUID membershipId
     ) {}
 
     @PostMapping("/email")
-    public ResponseEntity<?> sendEmail(@RequestBody SendEmailRequest request) {
+    public ResponseEntity<?> sendEmail(@Valid @RequestBody SendEmailRequest request) {
         String deliveryId = emailSender.sendEmail(request.to(), request.subject(), request.template(), request.variables());
         return ResponseEntity.ok(Map.of(
                 "status", "SIMULATED_DISPATCHED",
@@ -46,12 +53,28 @@ public class CommsController {
     }
 
     @PostMapping("/whatsapp")
-    public ResponseEntity<?> sendWhatsApp(@RequestBody SendWhatsAppRequest request) {
-        String deliveryId = whatsAppSender.sendTemplateMessage(request.phoneNumber(), request.templateName(), request.language() != null ? request.language() : "es", request.parameters());
-        return ResponseEntity.ok(Map.of(
-                "status", "SIMULATED_DISPATCHED",
-                "deliveryId", deliveryId,
-                "recipient", request.phoneNumber()
-        ));
+    public ResponseEntity<?> sendWhatsApp(@Valid @RequestBody SendWhatsAppMessageRequest request) {
+        try {
+            var serviceRequest = new WhatsAppService.SendWhatsAppNotificationRequest(
+                    request.requestId(),
+                    request.phoneNumber(),
+                    request.templateName(),
+                    request.language() != null ? request.language() : "es",
+                    request.parameters(),
+                    request.consentWhatsapp() == null || request.consentWhatsapp(),
+                    request.clientId(),
+                    request.clientName(),
+                    request.membershipId()
+            );
+
+            WhatsAppService.CommunicationResponse response = whatsAppService.processSendRequest(serviceRequest);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", 400,
+                    "error", "Bad Request",
+                    "message", e.getMessage()
+            ));
+        }
     }
 }
