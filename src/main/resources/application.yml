@@ -1,10 +1,13 @@
 server:
-  port: 8085
+  port: ${PORT:8085}
 
 spring:
   application:
     name: gymvip-comunicaciones
   datasource:
+    # ADVERTENCIA ARQUITECTURAL: La base de datos H2 en memoria (jdbc:h2:mem:commsdb)
+    # pierde los estados e intentos de comunicación al reiniciar el servicio o contenedor.
+    # Para persistencia local continua, use jdbc:h2:file:./data/commsdb o PostgreSQL en producción.
     url: jdbc:h2:mem:commsdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa

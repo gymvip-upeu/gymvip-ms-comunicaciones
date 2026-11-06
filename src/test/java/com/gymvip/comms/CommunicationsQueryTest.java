@@ -24,6 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class CommunicationsQueryTest {
 
+    private static final String SERVICE_KEY = "gymvip-internal-token-2026";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -36,7 +38,16 @@ class CommunicationsQueryTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/communications debe listar intentos con filtros y paginación (HU-18 T06 / T10)")
+    @DisplayName("GET /api/v1/communications sin X-Service-Key debe responder 401 Unauthorized")
+    void testListCommunicationsUnauthorizedWithoutKey() throws Exception {
+        mockMvc.perform(get("/api/v1/communications"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status", is(401)))
+                .andExpect(jsonPath("$.error", is("Unauthorized")));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/communications con X-Service-Key debe listar intentos con filtros y paginación (HU-18 T06 / T10)")
     void testListCommunicationsWithFilters() throws Exception {
         CommunicationAttempt c1 = new CommunicationAttempt(
                 UUID.randomUUID(), "REQ-01", ChannelType.WHATSAPP, "+51987654321",
@@ -53,20 +64,25 @@ class CommunicationsQueryTest {
         c2.setErrorMessage("Error de red simulado");
         repository.save(c2);
 
-        // Sin filtros: retorna 2 elementos
-        mockMvc.perform(get("/api/v1/communications"))
+        // Sin filtros con clave de servicio válida: retorna 2 elementos
+        mockMvc.perform(get("/api/v1/communications")
+                        .header("X-Service-Key", SERVICE_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(2)))
                 .andExpect(jsonPath("$.content", hasSize(2)));
 
         // Filtro por status=FALLIDO: retorna 1 elemento
-        mockMvc.perform(get("/api/v1/communications").param("status", "FALLIDO"))
+        mockMvc.perform(get("/api/v1/communications")
+                        .header("X-Service-Key", SERVICE_KEY)
+                        .param("status", "FALLIDO"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(1)))
                 .andExpect(jsonPath("$.content[0].clientName", is("Maria Rojas")));
 
         // Filtro por búsqueda search=Juan
-        mockMvc.perform(get("/api/v1/communications").param("search", "Juan"))
+        mockMvc.perform(get("/api/v1/communications")
+                        .header("X-Service-Key", SERVICE_KEY)
+                        .param("search", "Juan"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(1)))
                 .andExpect(jsonPath("$.content[0].clientName", is("Juan Perez")));

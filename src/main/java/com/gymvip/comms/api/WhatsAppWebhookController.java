@@ -1,5 +1,6 @@
 package com.gymvip.comms.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gymvip.comms.domain.CommunicationAttempt;
 import com.gymvip.comms.domain.CommunicationAttemptRepository;
 import com.gymvip.comms.domain.CommunicationStatus;
@@ -11,6 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -25,14 +30,20 @@ public class WhatsAppWebhookController {
     private static final Logger log = LoggerFactory.getLogger(WhatsAppWebhookController.class);
 
     private final String verifyToken;
+    private final String appSecret;
     private final CommunicationAttemptRepository attemptRepository;
+    private final ObjectMapper objectMapper;
 
     public WhatsAppWebhookController(
             @Value("${whatsapp.webhook-verify-token:gymvip_meta_webhook_token_2026}") String verifyToken,
-            CommunicationAttemptRepository attemptRepository
+            @Value("${whatsapp.app-secret:}") String appSecret,
+            CommunicationAttemptRepository attemptRepository,
+            ObjectMapper objectMapper
     ) {
         this.verifyToken = verifyToken;
+        this.appSecret = appSecret;
         this.attemptRepository = attemptRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -58,14 +69,26 @@ public class WhatsAppWebhookController {
 
     /**
      * Recepción de eventos en tiempo real: cambios de estado y mensajes entrantes.
+     * Valida firma criptográfica X-Hub-Signature-256 cuando WHATSAPP_APP_SECRET esté configurado.
      */
     @PostMapping
     @Transactional
     @SuppressWarnings("unchecked")
-    public ResponseEntity<Map<String, Object>> handleWebhookPayload(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map<String, Object>> handleWebhookPayload(
+            @RequestHeader(name = "X-Hub-Signature-256", required = false) String signatureHeader,
+            @RequestBody String rawPayload
+    ) {
         log.info("[WEBHOOK WHATSAPP] Notificación de evento entrante recibida de Meta.");
 
+        if (appSecret != null && !appSecret.isBlank()) {
+            if (!isValidSignature(rawPayload, signatureHeader)) {
+                log.warn("[WEBHOOK WHATSAPP] Firma X-Hub-Signature-256 rechazada.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Firma criptográfica inválida"));
+            }
+        }
+
         try {
+            Map<String, Object> payload = objectMapper.readValue(rawPayload, Map.class);
             List<Map<String, Object>> entryList = (List<Map<String, Object>>) payload.get("entry");
             if (entryList == null || entryList.isEmpty()) {
                 return ResponseEntity.ok(Map.of("status", "IGNORED", "reason", "no_entry"));
@@ -129,7 +152,6 @@ public class WhatsAppWebhookController {
 
                             log.info("[WEBHOOK WHATSAPP] Mensaje entrante de {}: ID={}, Texto: {}",
                                     CommunicationAttempt.maskRecipient(from), msgId, textBody);
-                            // Los mensajes entrantes quedan listos para integración con HU-16 respuestas frecuentes
                         }
                     }
                 }
@@ -141,6 +163,29 @@ public class WhatsAppWebhookController {
             log.error("[WEBHOOK WHATSAPP] Error al procesar carga de webhook: {}", e.getMessage(), e);
             // Meta exige 200 OK para no reintentar indefinidamente eventos con sintaxis imprevista
             return ResponseEntity.ok(Map.of("status", "ERROR_HANDLED", "error", e.getMessage()));
+        }
+    }
+
+    private boolean isValidSignature(String rawBody, String signatureHeader) {
+        if (signatureHeader == null || !signatureHeader.startsWith("sha256=")) {
+            return false;
+        }
+        try {
+            String expectedHash = signatureHeader.substring("sha256=".length()).trim();
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(appSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] bytes = mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : bytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return MessageDigest.isEqual(hexString.toString().getBytes(StandardCharsets.UTF_8), expectedHash.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            log.error("[WEBHOOK WHATSAPP] Error al verificar firma HMAC-SHA256: {}", e.getMessage());
+            return false;
         }
     }
 }
