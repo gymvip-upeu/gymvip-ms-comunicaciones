@@ -5,18 +5,34 @@ spring:
   application:
     name: gymvip-comunicaciones
   datasource:
-    # ADVERTENCIA ARQUITECTURAL: La base de datos H2 en memoria (jdbc:h2:mem:commsdb)
-    # pierde los estados e intentos de comunicación al reiniciar el servicio o contenedor.
-    # Para persistencia local continua, use jdbc:h2:file:./data/commsdb o PostgreSQL en producción.
-    url: jdbc:h2:mem:commsdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
+    url: ${COMMS_DB_URL:jdbc:postgresql://localhost:5432/gymvip}
+    username: ${COMMS_DB_USERNAME:postgres}
+    password: ${COMMS_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${COMMS_DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${COMMS_DB_POOL_MIN_IDLE:1}
+      connection-timeout: 20000
+      pool-name: GymVipCommsPool
+      schema: ${COMMS_DB_SCHEMA:comms}
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${HIBERNATE_DDL_AUTO:validate}
     show-sql: false
+    properties:
+      hibernate:
+        default_schema: ${COMMS_DB_SCHEMA:comms}
+        jdbc:
+          time_zone: America/Lima
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    schemas: ${COMMS_DB_SCHEMA:comms}
+    default-schema: ${COMMS_DB_SCHEMA:comms}
+    table: flyway_schema_history_comms
+    create-schemas: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
 
 comms:
   mode: ${COMMS_MODE:simulation} # simulation | production

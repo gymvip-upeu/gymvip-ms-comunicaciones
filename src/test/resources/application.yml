@@ -1,0 +1,32 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: gymvip-comunicaciones-test
+  datasource:
+    url: jdbc:h2:mem:commsdb_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+
+comms:
+  mode: simulation
+  service-token: gymvip-internal-token-2026
+
+whatsapp:
+  provider: simulation
+  api-version: v20.0
+  phone-number-id: "test-phone-id"
+  access-token: "test-token"
+  business-account-id: "test-waba-id"
+  business-handle: "@vipcenterfit"
+  webhook-verify-token: gymvip_meta_webhook_token_2026
+  app-secret: ""
