@@ -47,3 +47,12 @@ whatsapp:
   business-handle: ${WHATSAPP_HANDLE:@vipcenterfit}
   webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:gymvip_meta_webhook_token_2026}
   app-secret: ${WHATSAPP_APP_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

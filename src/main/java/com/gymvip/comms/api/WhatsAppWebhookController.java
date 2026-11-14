@@ -31,17 +31,20 @@ public class WhatsAppWebhookController {
 
     private final String verifyToken;
     private final String appSecret;
+    private final String commsMode;
     private final CommunicationAttemptRepository attemptRepository;
     private final ObjectMapper objectMapper;
 
     public WhatsAppWebhookController(
             @Value("${whatsapp.webhook-verify-token:gymvip_meta_webhook_token_2026}") String verifyToken,
             @Value("${whatsapp.app-secret:}") String appSecret,
+            @Value("${comms.mode:simulation}") String commsMode,
             CommunicationAttemptRepository attemptRepository,
             ObjectMapper objectMapper
     ) {
         this.verifyToken = verifyToken;
         this.appSecret = appSecret;
+        this.commsMode = commsMode;
         this.attemptRepository = attemptRepository;
         this.objectMapper = objectMapper;
     }
@@ -57,6 +60,12 @@ public class WhatsAppWebhookController {
             @RequestParam(name = "hub.challenge", required = false) String challenge
     ) {
         log.info("[WEBHOOK WHATSAPP] Solicitud de verificación recibida. Mode: {}, Token: {}", mode, token != null ? "***" : "null");
+
+        if ("production".equalsIgnoreCase(commsMode) &&
+                (verifyToken == null || verifyToken.isBlank() || "gymvip_meta_webhook_token_2026".equals(verifyToken))) {
+            log.error("[WEBHOOK WHATSAPP CRITICAL] Token de verificación por defecto rechazado en producción.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Default webhook verify token rejected in production");
+        }
 
         if ("subscribe".equals(mode) && verifyToken.equals(token)) {
             log.info("[WEBHOOK WHATSAPP] Verificación exitosa. Retornando challenge a Meta.");
@@ -79,6 +88,11 @@ public class WhatsAppWebhookController {
             @RequestBody String rawPayload
     ) {
         log.info("[WEBHOOK WHATSAPP] Notificación de evento entrante recibida de Meta.");
+
+        if ("production".equalsIgnoreCase(commsMode) && (appSecret == null || appSecret.isBlank())) {
+            log.error("[WEBHOOK WHATSAPP CRITICAL] En producción se exige WHATSAPP_APP_SECRET para validar firmas.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Firma criptográfica HMAC requerida en producción"));
+        }
 
         if (appSecret != null && !appSecret.isBlank()) {
             if (!isValidSignature(rawPayload, signatureHeader)) {

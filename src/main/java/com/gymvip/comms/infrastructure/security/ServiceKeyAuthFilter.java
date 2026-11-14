@@ -26,11 +26,14 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(ServiceKeyAuthFilter.class);
 
     private final String expectedServiceToken;
+    private final String commsMode;
 
     public ServiceKeyAuthFilter(
-            @Value("${comms.service-token:gymvip-internal-token-2026}") String expectedServiceToken
+            @Value("${comms.service-token:gymvip-internal-token-2026}") String expectedServiceToken,
+            @Value("${comms.mode:simulation}") String commsMode
     ) {
         this.expectedServiceToken = expectedServiceToken;
+        this.commsMode = commsMode;
     }
 
     @Override
@@ -43,7 +46,8 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
         }
 
         return path.startsWith("/api/v1/health") ||
-               path.startsWith("/actuator") ||
+               path.equals("/actuator/health") || path.startsWith("/actuator/health/") ||
+               path.equals("/actuator/info") || path.startsWith("/actuator/info/") ||
                path.startsWith("/api/v1/webhooks");
     }
 
@@ -53,6 +57,17 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        if ("production".equalsIgnoreCase(commsMode) &&
+                (expectedServiceToken == null || expectedServiceToken.isBlank() || "gymvip-internal-token-2026".equals(expectedServiceToken))) {
+            log.error("[COMMS SECURITY CRITICAL] Intento de operación en producción con COMMS_SERVICE_TOKEN por defecto o ausente.");
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("""
+                    {"status":500,"error":"Insecure Configuration","message":"Configuración insegura en producción: configure un COMMS_SERVICE_TOKEN externo."}
+                    """.trim());
+            return;
+        }
+
         String key = request.getHeader("X-Service-Key");
 
         if (key != null && key.equals(expectedServiceToken)) {
