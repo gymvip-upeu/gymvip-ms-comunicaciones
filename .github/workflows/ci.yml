@@ -1,0 +1,39 @@
+name: CI Microservicio Comunicaciones GymVIP
+
+on:
+  push:
+    branches:
+      - S2-REVISION-QA
+      - 'feature/**'
+      - main
+  pull_request:
+    branches:
+      - S2-REVISION-QA
+      - main
+
+jobs:
+  build-and-test:
+    name: Build & Test Comms Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21 LTS
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Ejecutar Pruebas de Integración y Seguridad de Webhooks
+        env:
+          COMMS_SERVICE_TOKEN: test-token-12345
+          WHATSAPP_APP_SECRET: test-app-secret-12345
+        run: |
+          chmod +x ./mvnw
+          ./mvnw test -B
+
+      - name: Empaquetar Microservicio
+        run: ./mvnw package -DskipTests -B
