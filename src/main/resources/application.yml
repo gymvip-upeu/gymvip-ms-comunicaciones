@@ -48,6 +48,12 @@ whatsapp:
   webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:gymvip_meta_webhook_token_2026}
   app-secret: ${WHATSAPP_APP_SECRET:}
 
+email:
+  provider: ${EMAIL_PROVIDER:simulation} # simulation | resend
+  from: ${EMAIL_FROM:notificaciones@gymvip.pe}
+  resend:
+    api-key: ${RESEND_API_KEY:}
+
 management:
   endpoints:
     web:
