@@ -155,7 +155,20 @@ public class WhatsAppWebhookController {
                         }
                     }
 
-                    // 2. Procesar Respuestas Entrantes de Clientes (HU-17 T09 y enlace HU-16)
+                    // 2. Procesar Respuestas Entrantes de Clientes (HU-17 T09, soporte BSUID y Username Meta 2026)
+                    List<Map<String, Object>> contacts = (List<Map<String, Object>>) value.get("contacts");
+                    String contactProfileName = null;
+                    String contactUsername = null;
+                    if (contacts != null && !contacts.isEmpty()) {
+                        Map<String, Object> firstContact = contacts.get(0);
+                        if (firstContact.get("profile") instanceof Map<?, ?> prof) {
+                            contactProfileName = String.valueOf(prof.get("name"));
+                        }
+                        if (firstContact.get("username") != null) {
+                            contactUsername = String.valueOf(firstContact.get("username"));
+                        }
+                    }
+
                     List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
                     if (messages != null) {
                         for (Map<String, Object> msg : messages) {
@@ -164,8 +177,11 @@ public class WhatsAppWebhookController {
                             Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
                             String textBody = textObj != null ? String.valueOf(textObj.get("body")) : "[Mensaje no texto]";
 
-                            log.info("[WEBHOOK WHATSAPP] Mensaje entrante de {}: ID={}, Texto: {}",
-                                    CommunicationAttempt.maskRecipient(from), msgId, textBody);
+                            String maskedSender = CommunicationAttempt.maskRecipient(from);
+                            String maskedUsername = contactUsername != null ? CommunicationAttempt.maskRecipient(contactUsername, com.gymvip.comms.domain.RecipientType.USERNAME) : "N/A";
+
+                            log.info("[WEBHOOK WHATSAPP] Mensaje entrante de {} (Perfil: {}, Username: {}): ID={}, Texto: {}",
+                                    maskedSender, contactProfileName != null ? contactProfileName : "N/A", maskedUsername, msgId, textBody);
                         }
                     }
                 }

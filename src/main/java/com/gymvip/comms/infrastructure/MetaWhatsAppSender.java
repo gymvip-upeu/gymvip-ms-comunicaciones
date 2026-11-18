@@ -2,6 +2,7 @@ package com.gymvip.comms.infrastructure;
 
 import com.gymvip.comms.domain.CommunicationAttempt;
 import com.gymvip.comms.domain.CommunicationStatus;
+import com.gymvip.comms.domain.RecipientType;
 import com.gymvip.comms.domain.WhatsAppSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +15,9 @@ import org.springframework.web.client.RestClient;
 import java.util.*;
 
 /**
- * Adaptador oficial para la API de Meta Cloud (WhatsApp Business API v20.0).
+ * Adaptador oficial para la API de Meta Cloud (WhatsApp Business API v20.0 - v22.0).
  * HU-17 T03.
+ * Compatible con direccionamiento por teléfono E.164, BSUID y Username de WhatsApp.
  */
 @Component("metaWhatsAppSender")
 public class MetaWhatsAppSender implements WhatsAppSender {
@@ -54,8 +56,13 @@ public class MetaWhatsAppSender implements WhatsAppSender {
             return simulationFallback.send(request);
         }
 
-        String maskedPhone = CommunicationAttempt.maskRecipient(request.phoneNumber());
-        log.info("[META WHATSAPP] Iniciando despacho oficial a {}", maskedPhone);
+        String rawTarget = request.recipientAddress() != null && !request.recipientAddress().isBlank()
+                ? request.recipientAddress()
+                : request.phoneNumber();
+        RecipientType type = request.recipientType() != null ? request.recipientType() : RecipientType.inferFromAddress(rawTarget);
+
+        String maskedTarget = CommunicationAttempt.maskRecipient(rawTarget, type);
+        log.info("[META WHATSAPP] Iniciando despacho oficial ({}) a {}", type, maskedTarget);
 
         String url = String.format("https://graph.facebook.com/%s/%s/messages", apiVersion, phoneNumberId);
 
@@ -73,13 +80,23 @@ public class MetaWhatsAppSender implements WhatsAppSender {
             templateObj.put("components", List.of(Map.of("type", "body", "parameters", bodyParameters)));
         }
 
-        Map<String, Object> payload = Map.of(
-                "messaging_product", "whatsapp",
-                "recipient_type", "individual",
-                "to", request.phoneNumber().replace("+", "").trim(),
-                "type", "template",
-                "template", templateObj
-        );
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("messaging_product", "whatsapp");
+
+        // Construir destinatario según RecipientType (E.164, BSUID o USERNAME)
+        if (type == RecipientType.USERNAME) {
+            payload.put("recipient_type", "username");
+            payload.put("to", rawTarget.replace("@", "").trim());
+        } else if (type == RecipientType.BSUID) {
+            payload.put("recipient_type", "individual");
+            payload.put("to", rawTarget.trim());
+        } else {
+            payload.put("recipient_type", "individual");
+            payload.put("to", rawTarget.replace("+", "").replaceAll("[\\s\\-\\(\\)]", "").trim());
+        }
+
+        payload.put("type", "template");
+        payload.put("template", templateObj);
 
         try {
             var response = restClient.post()
@@ -106,7 +123,7 @@ public class MetaWhatsAppSender implements WhatsAppSender {
             int statusCode = response.getStatusCode().value();
             boolean retryable = statusCode == 429 || (statusCode >= 500 && statusCode < 600);
             String errorMsg = "Fallo de respuesta de Meta API (HTTP " + statusCode + ")";
-            log.error("[META WHATSAPP] Error en despacho a {}: {}", maskedPhone, errorMsg);
+            log.error("[META WHATSAPP] Error en despacho a {}: {}", maskedTarget, errorMsg);
             return SendResult.failure(errorMsg, retryable);
 
         } catch (Exception e) {

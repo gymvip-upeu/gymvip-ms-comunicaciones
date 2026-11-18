@@ -5,6 +5,7 @@ import java.util.List;
 /**
  * Puerto de salida para el despacho de mensajes WhatsApp.
  * HU-17 T03.
+ * Compatible con formato E.164, BSUID y Usernames (Meta WhatsApp 2026).
  */
 public interface WhatsAppSender {
 
@@ -12,8 +13,15 @@ public interface WhatsAppSender {
             String phoneNumber,
             String templateName,
             String language,
-            List<String> parameters
-    ) {}
+            List<String> parameters,
+            RecipientType recipientType,
+            String recipientAddress
+    ) {
+        public WhatsAppSendRequest(String phoneNumber, String templateName, String language, List<String> parameters) {
+            this(phoneNumber, templateName, language, parameters,
+                    RecipientType.inferFromAddress(phoneNumber), phoneNumber);
+        }
+    }
 
     record SendResult(
             boolean success,

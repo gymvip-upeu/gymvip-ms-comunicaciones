@@ -7,13 +7,15 @@ import java.util.UUID;
 /**
  * Registro inmutable de auditoría e intentos de comunicación.
  * HU-17 T07 y HU-18 T05.
+ * Compatible con direccionamiento E.164, BSUID y Usernames (Meta WhatsApp 2026).
  */
 @Entity
 @Table(name = "communication_attempts", indexes = {
         @Index(name = "idx_comms_request_id", columnList = "request_id", unique = true),
         @Index(name = "idx_comms_client_id", columnList = "client_id"),
         @Index(name = "idx_comms_status", columnList = "status"),
-        @Index(name = "idx_comms_external_id", columnList = "external_message_id")
+        @Index(name = "idx_comms_external_id", columnList = "external_message_id"),
+        @Index(name = "idx_comms_recipient_type", columnList = "recipient_type")
 })
 public class CommunicationAttempt {
 
@@ -28,8 +30,15 @@ public class CommunicationAttempt {
     @Column(name = "channel", nullable = false, length = 20)
     private ChannelType channel;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recipient_type", length = 30)
+    private RecipientType recipientType = RecipientType.PHONE_NUMBER;
+
     @Column(name = "recipient", nullable = false, length = 120)
     private String recipient;
+
+    @Column(name = "recipient_address", length = 160)
+    private String recipientAddress;
 
     @Column(name = "recipient_masked", nullable = false, length = 120)
     private String recipientMasked;
@@ -82,11 +91,21 @@ public class CommunicationAttempt {
     public CommunicationAttempt(UUID id, String requestId, ChannelType channel, String recipient,
                                 UUID clientId, String clientName, UUID membershipId,
                                 String templateName, String payloadSummary) {
+        this(id, requestId, channel, RecipientType.inferFromAddress(recipient), recipient, recipient,
+                clientId, clientName, membershipId, templateName, payloadSummary);
+    }
+
+    public CommunicationAttempt(UUID id, String requestId, ChannelType channel, RecipientType recipientType,
+                                String recipient, String recipientAddress,
+                                UUID clientId, String clientName, UUID membershipId,
+                                String templateName, String payloadSummary) {
         this.id = id != null ? id : UUID.randomUUID();
         this.requestId = requestId;
         this.channel = channel;
+        this.recipientType = recipientType != null ? recipientType : RecipientType.inferFromAddress(recipient);
         this.recipient = recipient;
-        this.recipientMasked = maskRecipient(recipient);
+        this.recipientAddress = recipientAddress != null ? recipientAddress : recipient;
+        this.recipientMasked = maskRecipient(this.recipientAddress, this.recipientType);
         this.clientId = clientId;
         this.clientName = clientName;
         this.membershipId = membershipId;
@@ -99,23 +118,49 @@ public class CommunicationAttempt {
     }
 
     public static String maskRecipient(String raw) {
+        return maskRecipient(raw, RecipientType.inferFromAddress(raw));
+    }
+
+    public static String maskRecipient(String raw, RecipientType type) {
         if (raw == null || raw.isBlank()) return "-";
         String trimmed = raw.trim();
-        if (trimmed.contains("@")) {
+
+        // Si es correo electrónico
+        if (trimmed.contains("@") && trimmed.contains(".")) {
             int atIdx = trimmed.indexOf("@");
             if (atIdx <= 2) return "***" + trimmed.substring(atIdx);
             return trimmed.substring(0, 2) + "***" + trimmed.substring(atIdx);
         }
+
+        // Si es nombre de usuario WhatsApp (ej. @carlos_fit o carlos_fit)
+        if (type == RecipientType.USERNAME || trimmed.startsWith("@")) {
+            String prefix = trimmed.startsWith("@") ? "@" : "";
+            String clean = trimmed.startsWith("@") ? trimmed.substring(1) : trimmed;
+            if (clean.length() <= 3) return prefix + "***";
+            return prefix + clean.substring(0, 2) + "***" + clean.substring(clean.length() - 2);
+        }
+
+        // Si es BSUID (identificador alfanumérico largo)
+        if (type == RecipientType.BSUID || trimmed.toLowerCase().startsWith("bsuid.") || trimmed.toLowerCase().startsWith("bsuid_")) {
+            int len = trimmed.length();
+            if (len <= 8) return "bsuid_***";
+            return trimmed.substring(0, 6) + "***" + trimmed.substring(len - 4);
+        }
+
+        // Si es número telefónico E.164
         if (trimmed.length() >= 8) {
             return trimmed.substring(0, 4) + "****" + trimmed.substring(trimmed.length() - 2);
         }
+
         return "****";
     }
 
     public UUID getId() { return id; }
     public String getRequestId() { return requestId; }
     public ChannelType getChannel() { return channel; }
+    public RecipientType getRecipientType() { return recipientType; }
     public String getRecipient() { return recipient; }
+    public String getRecipientAddress() { return recipientAddress; }
     public String getRecipientMasked() { return recipientMasked; }
     public UUID getClientId() { return clientId; }
     public String getClientName() { return clientName; }
@@ -131,6 +176,18 @@ public class CommunicationAttempt {
     public LocalDateTime getSentAt() { return sentAt; }
     public LocalDateTime getDeliveredAt() { return deliveredAt; }
     public LocalDateTime getReadAt() { return readAt; }
+
+    public void setRecipientType(RecipientType recipientType) {
+        this.recipientType = recipientType;
+        this.recipientMasked = maskRecipient(this.recipientAddress, this.recipientType);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void setRecipientAddress(String recipientAddress) {
+        this.recipientAddress = recipientAddress;
+        this.recipientMasked = maskRecipient(this.recipientAddress, this.recipientType);
+        this.updatedAt = LocalDateTime.now();
+    }
 
     public void setStatus(CommunicationStatus status) {
         this.status = status;

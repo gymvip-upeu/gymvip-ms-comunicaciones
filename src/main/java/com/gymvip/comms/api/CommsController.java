@@ -1,6 +1,7 @@
 package com.gymvip.comms.api;
 
 import com.gymvip.comms.domain.EmailSender;
+import com.gymvip.comms.domain.RecipientType;
 import com.gymvip.comms.domain.WhatsAppService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -32,15 +33,32 @@ public class CommsController {
 
     public record SendWhatsAppMessageRequest(
             String requestId,
-            @NotBlank(message = "Teléfono obligatorio") String phoneNumber,
+            String phoneNumber,
             @NotBlank(message = "Plantilla obligatoria") String templateName,
             String language,
             List<String> parameters,
             Boolean consentWhatsapp,
             UUID clientId,
             String clientName,
-            UUID membershipId
-    ) {}
+            UUID membershipId,
+            RecipientType recipientType,
+            String recipientAddress
+    ) {
+        public SendWhatsAppMessageRequest(
+                String requestId,
+                String phoneNumber,
+                String templateName,
+                String language,
+                List<String> parameters,
+                Boolean consentWhatsapp,
+                UUID clientId,
+                String clientName,
+                UUID membershipId
+        ) {
+            this(requestId, phoneNumber, templateName, language, parameters, consentWhatsapp,
+                    clientId, clientName, membershipId, null, null);
+        }
+    }
 
     @PostMapping("/email")
     public ResponseEntity<?> sendEmail(@Valid @RequestBody SendEmailRequest request) {
@@ -55,16 +73,34 @@ public class CommsController {
     @PostMapping("/whatsapp")
     public ResponseEntity<?> sendWhatsApp(@Valid @RequestBody SendWhatsAppMessageRequest request) {
         try {
+            String targetAddress = request.recipientAddress() != null && !request.recipientAddress().isBlank()
+                    ? request.recipientAddress().trim()
+                    : (request.phoneNumber() != null ? request.phoneNumber().trim() : null);
+
+            if (targetAddress == null || targetAddress.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "status", 400,
+                        "error", "Bad Request",
+                        "message", "Debe indicarse un número de teléfono, BSUID o Username de WhatsApp."
+                ));
+            }
+
+            RecipientType rType = request.recipientType() != null
+                    ? request.recipientType()
+                    : RecipientType.inferFromAddress(targetAddress);
+
             var serviceRequest = new WhatsAppService.SendWhatsAppNotificationRequest(
                     request.requestId(),
-                    request.phoneNumber(),
+                    targetAddress,
                     request.templateName(),
                     request.language() != null ? request.language() : "es",
                     request.parameters(),
                     request.consentWhatsapp() == null || request.consentWhatsapp(),
                     request.clientId(),
                     request.clientName(),
-                    request.membershipId()
+                    request.membershipId(),
+                    rType,
+                    targetAddress
             );
 
             WhatsAppService.CommunicationResponse response = whatsAppService.processSendRequest(serviceRequest);

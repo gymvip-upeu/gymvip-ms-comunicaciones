@@ -12,12 +12,15 @@ import java.util.regex.Pattern;
 /**
  * Servicio de negocio para el procesamiento, validación y trazabilidad de WhatsApp.
  * HU-17 T05, T06, T07, T08.
+ * Compatible con direccionamiento E.164, BSUID y Usernames (Meta WhatsApp 2026).
  */
 @Service
 public class WhatsAppService {
 
     private static final Logger log = LoggerFactory.getLogger(WhatsAppService.class);
     private static final Pattern PHONE_DIGITS_PATTERN = Pattern.compile("^\\+?[0-9]{8,15}$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^@?[a-zA-Z0-9._]{3,30}$");
+    private static final Pattern BSUID_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]{6,128}$");
 
     private final WhatsAppSender whatsAppSender;
     private final CommunicationAttemptRepository attemptRepository;
@@ -36,8 +39,25 @@ public class WhatsAppService {
             boolean consentWhatsapp,
             UUID clientId,
             String clientName,
-            UUID membershipId
-    ) {}
+            UUID membershipId,
+            RecipientType recipientType,
+            String recipientAddress
+    ) {
+        public SendWhatsAppNotificationRequest(
+                String requestId,
+                String phoneNumber,
+                String templateName,
+                String language,
+                List<String> parameters,
+                boolean consentWhatsapp,
+                UUID clientId,
+                String clientName,
+                UUID membershipId
+        ) {
+            this(requestId, phoneNumber, templateName, language, parameters, consentWhatsapp, clientId, clientName, membershipId,
+                    RecipientType.inferFromAddress(phoneNumber), phoneNumber);
+        }
+    }
 
     public record CommunicationResponse(
             UUID id,
@@ -101,13 +121,40 @@ public class WhatsAppService {
             return CommunicationResponse.from(prev);
         }
 
-        // 2. Validación de Teléfono Destinatario (HU-17 T06)
-        String normalizedPhone = normalizePhoneNumber(request.phoneNumber());
-        if (normalizedPhone == null || !PHONE_DIGITS_PATTERN.matcher(normalizedPhone).matches()) {
-            throw new IllegalArgumentException("Número de teléfono inválido para WhatsApp. Debe seguir formato E.164 (ej. +519XXXXXXXX).");
+        // 2. Determinación y Validación de Destinatario (HU-17 T06, BSUID y Usernames Meta 2026)
+        String rawAddress = request.recipientAddress() != null && !request.recipientAddress().isBlank()
+                ? request.recipientAddress().trim()
+                : (request.phoneNumber() != null ? request.phoneNumber().trim() : null);
+
+        if (rawAddress == null || rawAddress.isBlank()) {
+            throw new IllegalArgumentException("Debe especificarse un destinatario válido para WhatsApp.");
         }
 
-        // 3. Validación de Consentimiento Específico de Canal (HU-17 T06)
+        RecipientType recipientType = request.recipientType() != null
+                ? request.recipientType()
+                : RecipientType.inferFromAddress(rawAddress);
+
+        String validatedAddress;
+        if (recipientType == RecipientType.USERNAME) {
+            if (!USERNAME_PATTERN.matcher(rawAddress).matches()) {
+                throw new IllegalArgumentException("Nombre de usuario de WhatsApp inválido: " + rawAddress);
+            }
+            validatedAddress = rawAddress.startsWith("@") ? rawAddress : "@" + rawAddress;
+        } else if (recipientType == RecipientType.BSUID) {
+            if (!BSUID_PATTERN.matcher(rawAddress).matches()) {
+                throw new IllegalArgumentException("Identificador BSUID inválido para WhatsApp: " + rawAddress);
+            }
+            validatedAddress = rawAddress;
+        } else {
+            // PHONE_NUMBER E.164
+            String normalizedPhone = normalizePhoneNumber(rawAddress);
+            if (normalizedPhone == null || !PHONE_DIGITS_PATTERN.matcher(normalizedPhone).matches()) {
+                throw new IllegalArgumentException("Número de teléfono inválido para WhatsApp. Debe seguir formato E.164 (ej. +519XXXXXXXX).");
+            }
+            validatedAddress = normalizedPhone;
+        }
+
+        // 3. Validación de Consentimiento Específico de Canal (HU-17 T06 y LPDP Ley 29733)
         if (!request.consentWhatsapp()) {
             throw new IllegalStateException("El miembro no ha otorgado consentimiento explícito para recibir avisos vía WhatsApp.");
         }
@@ -126,12 +173,14 @@ public class WhatsAppService {
         }
 
         // 5. Creación de Registro de Auditoría (HU-17 T07)
-        String payloadSummary = String.format("Plantilla: %s, Parámetros: %s", tplName, params);
+        String payloadSummary = String.format("Plantilla: %s, Tipo: %s, Parámetros: %s", tplName, recipientType, params);
         CommunicationAttempt attempt = new CommunicationAttempt(
                 UUID.randomUUID(),
                 reqId,
                 ChannelType.WHATSAPP,
-                normalizedPhone,
+                recipientType,
+                validatedAddress,
+                validatedAddress,
                 request.clientId(),
                 request.clientName(),
                 request.membershipId(),
@@ -142,10 +191,12 @@ public class WhatsAppService {
 
         // 6. Despacho al Proveedor (HU-17 T05)
         WhatsAppSender.WhatsAppSendRequest sendReq = new WhatsAppSender.WhatsAppSendRequest(
-                normalizedPhone,
+                validatedAddress,
                 tplName,
                 request.language() != null ? request.language() : templateInfo.language(),
-                params
+                params,
+                recipientType,
+                validatedAddress
         );
 
         WhatsAppSender.SendResult result = whatsAppSender.send(sendReq);
@@ -179,11 +230,16 @@ public class WhatsAppService {
         attempt.incrementAttemptCount();
         attempt.setStatus(CommunicationStatus.SOLICITADO);
 
+        String target = attempt.getRecipientAddress() != null ? attempt.getRecipientAddress() : attempt.getRecipient();
+        RecipientType type = attempt.getRecipientType() != null ? attempt.getRecipientType() : RecipientType.inferFromAddress(target);
+
         WhatsAppSender.WhatsAppSendRequest sendReq = new WhatsAppSender.WhatsAppSendRequest(
-                attempt.getRecipient(),
+                target,
                 attempt.getTemplateName(),
                 "es",
-                List.of()
+                List.of(),
+                type,
+                target
         );
 
         WhatsAppSender.SendResult result = whatsAppSender.send(sendReq);
