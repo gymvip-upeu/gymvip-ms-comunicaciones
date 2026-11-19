@@ -19,7 +19,7 @@ spring:
 
 comms:
   mode: simulation
-  service-token: gymvip-internal-token-2026
+  service-token: ${COMMS_SERVICE_TOKEN:test-token-12345}
 
 whatsapp:
   provider: simulation
@@ -29,4 +29,4 @@ whatsapp:
   business-account-id: "test-waba-id"
   business-handle: "@vipcenterfit"
   webhook-verify-token: gymvip_meta_webhook_token_2026
-  app-secret: ""
+  app-secret: ${WHATSAPP_APP_SECRET:test-app-secret-12345}

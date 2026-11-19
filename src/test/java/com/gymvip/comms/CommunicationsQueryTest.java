@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,7 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class CommunicationsQueryTest {
 
-    private static final String SERVICE_KEY = "gymvip-internal-token-2026";
+    @Value("${comms.service-token}")
+    private String serviceKey;
 
     @Autowired
     private MockMvc mockMvc;
@@ -41,6 +43,16 @@ class CommunicationsQueryTest {
     @DisplayName("GET /api/v1/communications sin X-Service-Key debe responder 401 Unauthorized")
     void testListCommunicationsUnauthorizedWithoutKey() throws Exception {
         mockMvc.perform(get("/api/v1/communications"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status", is(401)))
+                .andExpect(jsonPath("$.error", is("Unauthorized")));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/communications con X-Service-Key inválida debe responder 401 Unauthorized")
+    void testListCommunicationsUnauthorizedWithInvalidKey() throws Exception {
+        mockMvc.perform(get("/api/v1/communications")
+                        .header("X-Service-Key", "invalid-fake-service-key-99999"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status", is(401)))
                 .andExpect(jsonPath("$.error", is("Unauthorized")));
@@ -66,14 +78,14 @@ class CommunicationsQueryTest {
 
         // Sin filtros con clave de servicio válida: retorna 2 elementos
         mockMvc.perform(get("/api/v1/communications")
-                        .header("X-Service-Key", SERVICE_KEY))
+                        .header("X-Service-Key", serviceKey))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(2)))
                 .andExpect(jsonPath("$.content", hasSize(2)));
 
         // Filtro por status=FALLIDO: retorna 1 elemento
         mockMvc.perform(get("/api/v1/communications")
-                        .header("X-Service-Key", SERVICE_KEY)
+                        .header("X-Service-Key", serviceKey)
                         .param("status", "FALLIDO"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(1)))
@@ -81,7 +93,7 @@ class CommunicationsQueryTest {
 
         // Filtro por búsqueda search=Juan
         mockMvc.perform(get("/api/v1/communications")
-                        .header("X-Service-Key", SERVICE_KEY)
+                        .header("X-Service-Key", serviceKey)
                         .param("search", "Juan"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(1)))
