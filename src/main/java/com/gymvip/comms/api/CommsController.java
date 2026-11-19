@@ -64,7 +64,7 @@ public class CommsController {
     public ResponseEntity<?> sendEmail(@Valid @RequestBody SendEmailRequest request) {
         String deliveryId = emailSender.sendEmail(request.to(), request.subject(), request.template(), request.variables());
         return ResponseEntity.ok(Map.of(
-                "status", "SIMULATED_DISPATCHED",
+                "status", deliveryId.startsWith("sim_mail_") ? "SIMULATED_DISPATCHED" : "ACEPTADO_PROVEEDOR",
                 "deliveryId", deliveryId,
                 "recipient", request.to()
         ));

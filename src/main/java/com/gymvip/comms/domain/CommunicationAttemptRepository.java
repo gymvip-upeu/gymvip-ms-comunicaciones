@@ -21,8 +21,8 @@ public interface CommunicationAttemptRepository extends JpaRepository<Communicat
         SELECT c FROM CommunicationAttempt c
         WHERE (:status IS NULL OR c.status = :status)
           AND (:channel IS NULL OR c.channel = :channel)
-          AND (:search IS NULL OR LOWER(c.clientName) LIKE LOWER(CONCAT('%', :search, '%'))
-                             OR LOWER(c.recipient) LIKE LOWER(CONCAT('%', :search, '%')))
+          AND (cast(:search as string) IS NULL OR LOWER(c.clientName) LIKE LOWER(CONCAT('%', cast(:search as string), '%'))
+                             OR LOWER(c.recipient) LIKE LOWER(CONCAT('%', cast(:search as string), '%')))
         ORDER BY c.createdAt DESC
     """)
     Page<CommunicationAttempt> findWithFilters(
