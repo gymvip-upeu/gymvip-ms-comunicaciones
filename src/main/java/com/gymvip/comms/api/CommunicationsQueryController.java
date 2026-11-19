@@ -77,18 +77,19 @@ public class CommunicationsQueryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        CommunicationStatus st = null;
-        if (status != null && !status.isBlank() && !"TODOS".equalsIgnoreCase(status)) {
-            try { st = CommunicationStatus.valueOf(status.trim().toUpperCase()); } catch (Exception ignored) {}
+        CommunicationStatus st;
+        ChannelType ch;
+        try {
+            st = parseFilter(status, CommunicationStatus.class);
+            ch = parseFilter(channel, ChannelType.class);
+        } catch (IllegalArgumentException invalid) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Filtro de comunicación inválido."));
         }
-
-        ChannelType ch = null;
-        if (channel != null && !channel.isBlank() && !"TODOS".equalsIgnoreCase(channel)) {
-            try { ch = ChannelType.valueOf(channel.trim().toUpperCase()); } catch (Exception ignored) {}
+        if (page < 0 || size < 1 || size > 100) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Paginación inválida."));
         }
-
         String term = (search != null && !search.isBlank()) ? search.trim() : null;
-        PageRequest pageRequest = PageRequest.of(Math.max(0, page), Math.min(100, Math.max(1, size)));
+        PageRequest pageRequest = PageRequest.of(page, size);
 
         Page<CommunicationAttempt> paged = repository.findWithFilters(st, ch, term, pageRequest);
 
@@ -100,6 +101,11 @@ public class CommunicationsQueryController {
         response.put("size", paged.getSize());
 
         return ResponseEntity.ok(response);
+    }
+
+    private static <T extends Enum<T>> T parseFilter(String raw, Class<T> type) {
+        if (raw == null || raw.isBlank() || "TODOS".equalsIgnoreCase(raw.trim())) return null;
+        return Enum.valueOf(type, raw.trim().toUpperCase(Locale.ROOT));
     }
 
     @GetMapping("/{id}")
