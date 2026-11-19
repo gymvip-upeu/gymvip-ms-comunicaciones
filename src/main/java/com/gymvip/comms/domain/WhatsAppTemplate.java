@@ -29,8 +29,8 @@ public record WhatsAppTemplate(
                     true
             ),
             TEMPLATE_OVERDUE_NOTICE, new WhatsAppTemplate(
-                    TEMPLATE_OVERDUE_NOTICE, "UTILITY", "es", 3,
-                    "Aviso de membresía vencida (primeros 5 días): {{1}}=Nombre, {{2}}=Plan, {{3}}=Días de vencido",
+                    TEMPLATE_OVERDUE_NOTICE, "UTILITY", "es", 4,
+                    "Aviso de membresía vencida (primeros 5 días): {{1}}=Nombre, {{2}}=Plan, {{3}}=Fecha Vencimiento, {{4}}=Días de vencido",
                     true
             ),
             TEMPLATE_RENEWAL_CONFIRMED, new WhatsAppTemplate(
