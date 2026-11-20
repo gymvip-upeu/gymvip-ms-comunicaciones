@@ -1,13 +1,14 @@
 server:
   port: ${PORT:8085}
+  address: ${SERVER_ADDRESS:0.0.0.0}
 
 spring:
   application:
     name: gymvip-comunicaciones
   datasource:
-    url: ${COMMS_DB_URL:jdbc:postgresql://localhost:5432/gymvip}
-    username: ${COMMS_DB_USERNAME:postgres}
-    password: ${COMMS_DB_PASSWORD:}
+    url: ${COMMS_DB_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/gymvip}}
+    username: ${COMMS_DB_USERNAME:${DATABASE_USERNAME:postgres}}
+    password: ${COMMS_DB_PASSWORD:${DATABASE_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${COMMS_DB_POOL_MAX_SIZE:5}

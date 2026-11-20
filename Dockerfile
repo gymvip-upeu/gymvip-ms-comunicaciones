@@ -40,5 +40,5 @@ ENV TZ=America/Lima
 
 EXPOSE 8085
 
-# Iniciar Spring Boot con zona horaria America/Lima y mapeo de puerto dinámico
-ENTRYPOINT ["sh", "-c", "java -Duser.timezone=America/Lima -Dserver.port=${PORT} -jar app.jar"]
+# Iniciar Spring Boot con zona horaria America/Lima, enlace explícito a 0.0.0.0 y mapeo de puerto dinámico
+ENTRYPOINT ["sh", "-c", "java -Duser.timezone=America/Lima -Dserver.address=0.0.0.0 -Dserver.port=${PORT} -jar app.jar"]
