@@ -99,4 +99,20 @@ class CommunicationsQueryTest {
                 .andExpect(jsonPath("$.totalElements", is(1)))
                 .andExpect(jsonPath("$.content[0].clientName", is("Juan Perez")));
     }
+
+    @Test
+    void rejectsInvalidFiltersAndTreatsSearchAsLiteral() throws Exception {
+        repository.save(new CommunicationAttempt(UUID.randomUUID(), "REQ-LITERAL", ChannelType.APP,
+                "+51987654321", UUID.randomUUID(), "Socio de prueba", null, "aviso", "summary"));
+
+        for (String filter : new String[]{"status", "channel"}) {
+            mockMvc.perform(get("/api/v1/communications").header("X-Service-Key", serviceKey)
+                            .param(filter, "no-existe"))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(get("/api/v1/communications").header("X-Service-Key", serviceKey)
+                        .param("search", "%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(0)));
+    }
 }
