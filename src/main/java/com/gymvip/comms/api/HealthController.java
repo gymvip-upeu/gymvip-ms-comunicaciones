@@ -34,4 +34,20 @@ public class HealthController {
                 "timestamp", Instant.now().toString()
         ));
     }
+
+    @GetMapping("/api/v1/channels/status")
+    public ResponseEntity<Map<String, Object>> channelsStatus() {
+        boolean isSim = "simulation".equalsIgnoreCase(mode);
+        String waStatus = isSim ? "SIMULATION" : "CONFIGURED_REAL";
+        String emailStatus = isSim ? "SIMULATION" : "CONFIGURED_REAL";
+        return ResponseEntity.ok(Map.of(
+                "service", "gymvip-comunicaciones",
+                "timestamp", Instant.now().toString(),
+                "channels", Map.of(
+                        "whatsapp", Map.of("status", waStatus, "provider", provider),
+                        "email", Map.of("status", emailStatus, "provider", "Resend"),
+                        "push", Map.of("status", "CONFIGURED_REAL", "provider", "FCM")
+                )
+        ));
+    }
 }
