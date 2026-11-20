@@ -25,8 +25,17 @@ public class WhatsAppConfig {
             MetaWhatsAppSender metaSender,
             SimulationWhatsAppSender simulationSender
     ) {
-        if ("production".equalsIgnoreCase(commsMode) && "meta".equalsIgnoreCase(provider) && metaSender.isConfigured()) {
-            log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción)");
+        if ("production".equalsIgnoreCase(commsMode)) {
+            if ("meta".equalsIgnoreCase(provider)) {
+                log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción Estricto - Fallo explícito si faltan credenciales)");
+                return metaSender;
+            }
+            log.info("[WHATSAPP CONFIG] Proveedor activo: SIMULATION ADAPTER (Modo Producción con simulación explícita)");
+            return simulationSender;
+        }
+
+        if ("meta".equalsIgnoreCase(provider) && metaSender.isConfigured()) {
+            log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API");
             return metaSender;
         }
 

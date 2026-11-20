@@ -1,5 +1,7 @@
 package com.gymvip.comms.api;
 
+import com.gymvip.comms.infrastructure.MetaWhatsAppSender;
+import com.gymvip.comms.infrastructure.ResendEmailSender;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,14 +16,23 @@ import java.util.Map;
 public class HealthController {
 
     private final String mode;
-    private final String provider;
+    private final String waProvider;
+    private final String emailProvider;
+    private final MetaWhatsAppSender metaSender;
+    private final ResendEmailSender resendSender;
 
     public HealthController(
             @Value("${comms.mode:simulation}") String mode,
-            @Value("${whatsapp.provider:meta}") String provider
+            @Value("${whatsapp.provider:meta}") String waProvider,
+            @Value("${email.provider:simulation}") String emailProvider,
+            MetaWhatsAppSender metaSender,
+            ResendEmailSender resendSender
     ) {
         this.mode = mode;
-        this.provider = provider;
+        this.waProvider = waProvider;
+        this.emailProvider = emailProvider;
+        this.metaSender = metaSender;
+        this.resendSender = resendSender;
     }
 
     @GetMapping({"/api/v1/health", "/health"})
@@ -30,23 +41,45 @@ public class HealthController {
                 "service", "gymvip-comunicaciones",
                 "status", "UP",
                 "mode", mode,
-                "whatsappProvider", provider,
+                "whatsappProvider", waProvider,
+                "emailProvider", emailProvider,
                 "timestamp", Instant.now().toString()
         ));
     }
 
     @GetMapping("/api/v1/channels/status")
     public ResponseEntity<Map<String, Object>> channelsStatus() {
-        boolean isSim = "simulation".equalsIgnoreCase(mode);
-        String waStatus = isSim ? "SIMULATION" : "CONFIGURED_REAL";
-        String emailStatus = isSim ? "SIMULATION" : "CONFIGURED_REAL";
+        boolean isGlobalSim = "simulation".equalsIgnoreCase(mode);
+
+        String waStatus;
+        if (isGlobalSim || "simulation".equalsIgnoreCase(waProvider)) {
+            waStatus = "SIMULATION";
+        } else if (metaSender.isConfigured()) {
+            waStatus = "CONFIGURED_REAL";
+        } else {
+            waStatus = "MISSING_CREDENTIALS";
+        }
+
+        String emailStatus;
+        if (isGlobalSim || "simulation".equalsIgnoreCase(emailProvider)) {
+            emailStatus = "SIMULATION";
+        } else if (resendSender.isConfigured()) {
+            emailStatus = "CONFIGURED_REAL";
+        } else {
+            emailStatus = "MISSING_CREDENTIALS";
+        }
+
         return ResponseEntity.ok(Map.of(
                 "service", "gymvip-comunicaciones",
                 "timestamp", Instant.now().toString(),
                 "channels", Map.of(
-                        "whatsapp", Map.of("status", waStatus, "provider", provider),
-                        "email", Map.of("status", emailStatus, "provider", "Resend"),
-                        "push", Map.of("status", "CONFIGURED_REAL", "provider", "FCM")
+                        "whatsapp", Map.of("status", waStatus, "provider", waProvider),
+                        "email", Map.of("status", emailStatus, "provider", emailProvider),
+                        "push", Map.of(
+                                "status", "UNAVAILABLE_ON_SERVER",
+                                "provider", "FCM",
+                                "detail", "Notificaciones push gestionadas en cliente Android"
+                        )
                 )
         ));
     }
