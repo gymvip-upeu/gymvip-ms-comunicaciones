@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/health")
+@RequestMapping
 public class HealthController {
 
     private final String mode;
@@ -24,7 +24,7 @@ public class HealthController {
         this.provider = provider;
     }
 
-    @GetMapping
+    @GetMapping({"/api/v1/health", "/health"})
     public ResponseEntity<Map<String, Object>> health() {
         return ResponseEntity.ok(Map.of(
                 "service", "gymvip-comunicaciones",
