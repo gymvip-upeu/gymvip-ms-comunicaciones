@@ -22,9 +22,11 @@ public class WhatsAppConfig {
     public WhatsAppSender primaryWhatsAppSender(
             @Value("${comms.mode:simulation}") String commsMode,
             @Value("${whatsapp.provider:meta}") String provider,
+            @Value("${whatsapp.enabled:true}") boolean enabled,
             MetaWhatsAppSender metaSender,
             SimulationWhatsAppSender simulationSender
     ) {
+        if (!enabled) return request -> WhatsAppSender.SendResult.failure("Canal WhatsApp desactivado", false);
         if ("production".equalsIgnoreCase(commsMode) && "meta".equalsIgnoreCase(provider) && metaSender.isConfigured()) {
             log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción)");
             return metaSender;

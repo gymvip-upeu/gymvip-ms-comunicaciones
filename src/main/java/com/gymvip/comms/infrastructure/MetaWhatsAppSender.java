@@ -44,8 +44,10 @@ public class MetaWhatsAppSender implements WhatsAppSender {
     }
 
     public boolean isConfigured() {
-        return phoneNumberId != null && !phoneNumberId.isBlank()
-                && accessToken != null && !accessToken.isBlank();
+        return phoneNumberId != null && phoneNumberId.matches("[0-9]+")
+                && accessToken != null && !accessToken.isBlank()
+                && !accessToken.toLowerCase(Locale.ROOT).matches(".*(placeholder|replace|example|your[_-]?token|change[_-]?me).*" )
+                && apiVersion.matches("v[0-9]+[.][0-9]+");
     }
 
     @Override
