@@ -30,6 +30,6 @@ public class WhatsAppChannelStatusController {
             "channels",Map.of("whatsapp",Map.of("channel","WHATSAPP","enabled",enabled,
                 "status",status,"provider","meta".equalsIgnoreCase(provider) ? "Meta Cloud API" : "Simulación",
                 "configurationComplete",configured,"connectionVerified",false,
-                "effectiveMode",!enabled ? "DISABLED" : real ? "REAL" : "SIMULATION")));
+                "effectiveMode",!enabled ? "DISABLED" : real ? "REAL" : simulation ? "SIMULATION" : "BLOCKED")));
     }
 }

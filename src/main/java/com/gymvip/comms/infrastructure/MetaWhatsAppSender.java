@@ -6,6 +6,7 @@ import com.gymvip.comms.domain.RecipientType;
 import com.gymvip.comms.domain.WhatsAppSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -30,17 +31,28 @@ public class MetaWhatsAppSender implements WhatsAppSender {
     private final RestClient restClient;
     private final SimulationWhatsAppSender simulationFallback;
 
+    @Autowired
     public MetaWhatsAppSender(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken,
             @Value("${whatsapp.api-version:v20.0}") String apiVersion,
             SimulationWhatsAppSender simulationFallback
     ) {
-        this.phoneNumberId = phoneNumberId;
-        this.accessToken = accessToken;
-        this.apiVersion = (apiVersion != null && !apiVersion.isBlank()) ? apiVersion : "v20.0";
+        this(phoneNumberId, accessToken, apiVersion, simulationFallback, RestClient.builder().build());
+    }
+
+    public MetaWhatsAppSender(
+            String phoneNumberId,
+            String accessToken,
+            String apiVersion,
+            SimulationWhatsAppSender simulationFallback,
+            RestClient restClient
+    ) {
+        this.phoneNumberId = phoneNumberId != null ? phoneNumberId.trim() : "";
+        this.accessToken = accessToken != null ? accessToken.trim() : "";
+        this.apiVersion = (apiVersion != null && !apiVersion.isBlank()) ? apiVersion.trim() : "v20.0";
         this.simulationFallback = simulationFallback;
-        this.restClient = RestClient.builder().build();
+        this.restClient = restClient != null ? restClient : RestClient.builder().build();
     }
 
     public boolean isConfigured() {
@@ -54,8 +66,9 @@ public class MetaWhatsAppSender implements WhatsAppSender {
     @SuppressWarnings("unchecked")
     public SendResult send(WhatsAppSendRequest request) {
         if (!isConfigured()) {
-            log.warn("[META WHATSAPP] Credenciales de Meta Cloud API no configuradas. Redirigiendo a adaptador simulado.");
-            return simulationFallback.send(request);
+            String errorMsg = "Credenciales de Meta Cloud API no configuradas (WHATSAPP_PHONE_ID y/o WHATSAPP_ACCESS_TOKEN ausentes). Fallo explícito sin fallback.";
+            log.error("[META WHATSAPP CRITICAL] {}", errorMsg);
+            return SendResult.failure(errorMsg, false);
         }
 
         String rawTarget = request.recipientAddress() != null && !request.recipientAddress().isBlank()
@@ -77,7 +90,7 @@ public class MetaWhatsAppSender implements WhatsAppSender {
 
         Map<String, Object> templateObj = new LinkedHashMap<>();
         templateObj.put("name", request.templateName());
-        templateObj.put("language", Map.of("code", request.language() != null ? request.language() : "es"));
+        templateObj.put("language", Map.of("code", request.language() != null && !request.language().isBlank() ? request.language() : "es"));
         if (!bodyParameters.isEmpty()) {
             templateObj.put("components", List.of(Map.of("type", "body", "parameters", bodyParameters)));
         }
@@ -124,7 +137,14 @@ public class MetaWhatsAppSender implements WhatsAppSender {
 
             int statusCode = response.getStatusCode().value();
             boolean retryable = statusCode == 429 || (statusCode >= 500 && statusCode < 600);
-            String errorMsg = "Fallo de respuesta de Meta API (HTTP " + statusCode + ")";
+            String detail = "";
+            if (response.getBody() instanceof Map<?, ?> bodyMap && bodyMap.containsKey("error")) {
+                Object errObj = bodyMap.get("error");
+                if (errObj instanceof Map<?, ?> errMap && errMap.containsKey("message")) {
+                    detail = ": " + errMap.get("message");
+                }
+            }
+            String errorMsg = "Fallo de respuesta de Meta API (HTTP " + statusCode + ")" + detail;
             log.error("[META WHATSAPP] Error en despacho a {}: {}", maskedTarget, errorMsg);
             return SendResult.failure(errorMsg, retryable);
 

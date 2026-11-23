@@ -27,7 +27,7 @@ class WhatsAppChannelStatusTest {
         for(var sender: new MetaWhatsAppSender[]{meta("",""),meta("123456","placeholder"),meta("replace-phone","valid-secret")}) {
             var report=report(true,"production","meta",sender);
             assertEquals("UNCONFIGURED",report.get("status"));
-            assertEquals("SIMULATION",report.get("effectiveMode"));
+            assertEquals("BLOCKED",report.get("effectiveMode"));
         }
     }
     @Test void completeConfigurationDoesNotCertifyProviderConnectionOrDelivery() {
@@ -50,5 +50,11 @@ class WhatsAppChannelStatusTest {
         mvc.perform(get("/api/v1/channels/status").header("X-Service-Key","shared-private-test-key"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.channels.whatsapp.status").value("SIMULATION"))
             .andExpect(jsonPath("$.channels.email").doesNotExist()).andExpect(jsonPath("$.channels.push").doesNotExist());
+    }
+
+    @Test void productionWithoutCredentialsFailsInsteadOfSimulating() {
+        var sender=new WhatsAppConfig().primaryWhatsAppSender("production","meta",true,meta("",""),simulation);
+        assertFalse(sender.send(null).success());
+        assertSame(simulation,new WhatsAppConfig().primaryWhatsAppSender("simulation","meta",true,meta("123456","valid-secret"),simulation));
     }
 }

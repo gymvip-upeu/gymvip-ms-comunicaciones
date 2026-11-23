@@ -180,8 +180,8 @@ public class WhatsAppWebhookController {
                             String maskedSender = CommunicationAttempt.maskRecipient(from);
                             String maskedUsername = contactUsername != null ? CommunicationAttempt.maskRecipient(contactUsername, com.gymvip.comms.domain.RecipientType.USERNAME) : "N/A";
 
-                            log.info("[WEBHOOK WHATSAPP] Mensaje entrante de {} (Perfil: {}, Username: {}): ID={}, Texto: {}",
-                                    maskedSender, contactProfileName != null ? contactProfileName : "N/A", maskedUsername, msgId, textBody);
+                            log.info("[WEBHOOK WHATSAPP] Notificación de mensaje entrante de {} (Perfil: {}, Username: {}): ID={}, Contenido: [RESERVADO_POR_PRIVACIDAD]",
+                                    maskedSender, contactProfileName != null ? contactProfileName : "N/A", maskedUsername, msgId);
                         }
                     }
                 }
