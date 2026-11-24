@@ -59,4 +59,8 @@ public record WhatsAppTemplate(
     public static boolean isApproved(String name) {
         return findByName(name).map(WhatsAppTemplate::approved).orElse(false);
     }
+
+    public static List<WhatsAppTemplate> listAll() {
+        return List.copyOf(REGISTRY.values());
+    }
 }

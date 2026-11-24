@@ -113,4 +113,45 @@ public class CommsController {
             ));
         }
     }
+
+    @GetMapping("/templates")
+    public ResponseEntity<?> listTemplates() {
+        return ResponseEntity.ok(com.gymvip.comms.domain.WhatsAppTemplate.listAll());
+    }
+
+    public record TemplatePreviewRequest(
+            @NotBlank(message = "Plantilla obligatoria") String templateName,
+            List<String> parameters
+    ) {}
+
+    @PostMapping("/templates/preview")
+    public ResponseEntity<?> previewTemplate(@Valid @RequestBody TemplatePreviewRequest request) {
+        var opt = com.gymvip.comms.domain.WhatsAppTemplate.findByName(request.templateName());
+        if (opt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", 400,
+                    "error", "Template Not Found",
+                    "message", "La plantilla '" + request.templateName() + "' no está registrada en el catálogo oficial de Meta."
+            ));
+        }
+
+        var tpl = opt.get();
+        String description = tpl.description();
+        List<String> params = request.parameters() != null ? request.parameters() : List.of();
+
+        String rendered = description;
+        for (int i = 0; i < params.size(); i++) {
+            rendered = rendered.replace("{{" + (i + 1) + "}}", params.get(i));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "templateName", tpl.name(),
+                "category", tpl.category(),
+                "language", tpl.language(),
+                "expectedParameters", tpl.expectedParameters(),
+                "receivedParameters", params.size(),
+                "previewText", rendered,
+                "approved", tpl.approved()
+        ));
+    }
 }
