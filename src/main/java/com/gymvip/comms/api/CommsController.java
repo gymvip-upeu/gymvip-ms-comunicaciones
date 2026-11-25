@@ -25,7 +25,7 @@ public class CommsController {
     }
 
     public record SendEmailRequest(
-            @NotBlank(message = "Destinatario obligatorio") String to,
+            @NotBlank(message = "Destinatario obligatorio") @jakarta.validation.constraints.Email String to,
             @NotBlank(message = "Asunto obligatorio") String subject,
             String template,
             Map<String, Object> variables

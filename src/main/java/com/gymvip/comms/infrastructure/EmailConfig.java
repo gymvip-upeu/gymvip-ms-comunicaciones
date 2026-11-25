@@ -20,14 +20,19 @@ public class EmailConfig {
     @Bean
     @Primary
     public EmailSender primaryEmailSender(
-            @Value("${comms.mode:simulation}") String commsMode,
+            @Value("${email.mode:${comms.mode:simulation}}") String emailMode,
             @Value("${email.provider:simulation}") String provider,
             ResendEmailSender resendSender,
             SimulationEmailSender simulationSender
     ) {
-        if ("production".equalsIgnoreCase(commsMode) && "resend".equalsIgnoreCase(provider) && resendSender.isConfigured()) {
-            log.info("[EMAIL CONFIG] Proveedor activo: RESEND API (Modo Producción)");
-            return resendSender;
+        if ("production".equalsIgnoreCase(emailMode)) {
+            if ("resend".equalsIgnoreCase(provider) && resendSender.isConfigured()) {
+                log.info("[EMAIL CONFIG] Proveedor activo: RESEND API (Modo Producción)");
+                return resendSender;
+            }
+            return (to, subject, template, variables) -> {
+                throw new IllegalStateException("Correo real sin configurar. Revisa EMAIL_PROVIDER y RESEND_API_KEY.");
+            };
         }
 
         log.info("[EMAIL CONFIG] Proveedor activo: SIMULATION EMAIL ADAPTER (Modo Seguro Sin Costos)");

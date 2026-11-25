@@ -21,10 +21,15 @@ public class WhatsAppConfig {
     @Primary
     public WhatsAppSender primaryWhatsAppSender(
             @Value("${comms.mode:simulation}") String commsMode,
+            @Value("${whatsapp.enabled:true}") boolean whatsappEnabled,
             @Value("${whatsapp.provider:meta}") String provider,
             MetaWhatsAppSender metaSender,
             SimulationWhatsAppSender simulationSender
     ) {
+        if (!whatsappEnabled) {
+            log.info("[WHATSAPP CONFIG] Canal deshabilitado (whatsapp.enabled=false) -> SIMULATION ADAPTER");
+            return simulationSender;
+        }
         if ("production".equalsIgnoreCase(commsMode)) {
             if ("meta".equalsIgnoreCase(provider)) {
                 log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción Estricto - Fallo explícito si faltan credenciales)");

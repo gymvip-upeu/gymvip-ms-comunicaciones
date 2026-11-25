@@ -1,6 +1,7 @@
 server:
   port: ${PORT:8085}
   address: ${SERVER_ADDRESS:0.0.0.0}
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:framework}
 
 spring:
   application:
@@ -40,6 +41,7 @@ comms:
   service-token: ${COMMS_SERVICE_TOKEN:gymvip-internal-token-2026}
 
 whatsapp:
+  enabled: ${WHATSAPP_ENABLED:true}
   provider: ${WHATSAPP_PROVIDER:meta} # meta | simulation
   api-version: ${WHATSAPP_API_VERSION:v20.0}
   phone-number-id: ${WHATSAPP_PHONE_ID:}
@@ -50,6 +52,7 @@ whatsapp:
   app-secret: ${WHATSAPP_APP_SECRET:}
 
 email:
+  mode: ${EMAIL_MODE:${COMMS_MODE:simulation}} # simulation | production
   provider: ${EMAIL_PROVIDER:simulation} # simulation | resend
   from: ${EMAIL_FROM:notificaciones@gymvip.pe}
   resend:
