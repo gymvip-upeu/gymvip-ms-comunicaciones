@@ -55,9 +55,19 @@ public class MetaWhatsAppSender implements WhatsAppSender {
         this.restClient = restClient != null ? restClient : RestClient.builder().build();
     }
 
+    private static boolean hasRealValue(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        return !lower.matches(".*(placeholder|replace|example|your[_-]?|change[_-]?me|pending|dummy|fake).*");
+    }
+
     public boolean isConfigured() {
-        return phoneNumberId != null && !phoneNumberId.isBlank()
-                && accessToken != null && !accessToken.isBlank();
+        return hasRealValue(phoneNumberId)
+                && hasRealValue(accessToken)
+                && apiVersion != null
+                && apiVersion.matches("v[0-9]+[.][0-9]+");
     }
 
     @Override

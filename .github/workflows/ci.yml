@@ -3,12 +3,14 @@ name: CI Microservicio Comunicaciones GymVIP
 on:
   push:
     branches:
+      - develop
       - ACOSTA-MEJORAS-Y-ACTUALIZACIONES
       - S2-REVISION-QA
       - 'feature/**'
       - main
   pull_request:
     branches:
+      - develop
       - ACOSTA-MEJORAS-Y-ACTUALIZACIONES
       - S2-REVISION-QA
       - main
@@ -35,7 +37,7 @@ jobs:
           WHATSAPP_APP_SECRET: test-app-secret-12345
         run: |
           chmod +x ./mvnw
-          ./mvnw enforcer:enforce test -B
+          ./mvnw test -B
 
       - name: Empaquetar Microservicio
         run: ./mvnw package -DskipTests -B

@@ -27,24 +27,19 @@ public class WhatsAppConfig {
             SimulationWhatsAppSender simulationSender
     ) {
         if (!whatsappEnabled) {
-            log.info("[WHATSAPP CONFIG] Canal deshabilitado (whatsapp.enabled=false) -> SIMULATION ADAPTER");
+            log.warn("[WHATSAPP CONFIG] Canal deshabilitado (whatsapp.enabled=false) -> BLOQUEADO");
+            return request -> WhatsAppSender.SendResult.failure("Canal WhatsApp desactivado", false);
+        }
+        if ("simulation".equalsIgnoreCase(commsMode) || "simulation".equalsIgnoreCase(provider)) {
+            log.info("[WHATSAPP CONFIG] Proveedor activo: SIMULATION ADAPTER (Modo simulación explícito)");
             return simulationSender;
         }
-        if ("production".equalsIgnoreCase(commsMode)) {
-            if ("meta".equalsIgnoreCase(provider)) {
-                log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción Estricto - Fallo explícito si faltan credenciales)");
-                return metaSender;
-            }
-            log.info("[WHATSAPP CONFIG] Proveedor activo: SIMULATION ADAPTER (Modo Producción con simulación explícita)");
-            return simulationSender;
-        }
-
-        if ("meta".equalsIgnoreCase(provider) && metaSender.isConfigured()) {
-            log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API");
+        if ("production".equalsIgnoreCase(commsMode) && "meta".equalsIgnoreCase(provider)) {
+            log.info("[WHATSAPP CONFIG] Proveedor activo: META CLOUD API (Modo Producción Estricto - Fallo explícito si faltan credenciales)");
             return metaSender;
         }
 
-        log.info("[WHATSAPP CONFIG] Proveedor activo: SIMULATION ADAPTER (Modo Seguro Sin Costos)");
-        return simulationSender;
+        log.warn("[WHATSAPP CONFIG] Combinación no válida comms.mode={} whatsapp.provider={} -> BLOQUEADO", commsMode, provider);
+        return request -> WhatsAppSender.SendResult.failure("Configuración de WhatsApp no válida", false);
     }
 }
