@@ -18,6 +18,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,6 +38,18 @@ class CommunicationsQueryTest {
     @BeforeEach
     void setUp() {
         repository.deleteAll();
+    }
+
+    @Test
+    @DisplayName("GET y HEAD / deben responder 200 UP públicamente sin exponer secretos")
+    void testRootProbePublicAndMinimal() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.service", is("gymvip-comunicaciones")))
+                .andExpect(jsonPath("$.status", is("UP")));
+
+        mockMvc.perform(head("/"))
+                .andExpect(status().isOk());
     }
 
     @Test

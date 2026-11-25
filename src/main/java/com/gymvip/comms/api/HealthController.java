@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
@@ -40,6 +41,15 @@ public class HealthController {
         this.emailProvider = emailProvider;
         this.metaSender = metaSender;
         this.resendSender = resendSender;
+    }
+
+    @RequestMapping(value = "/", method = {RequestMethod.GET, RequestMethod.HEAD})
+    public ResponseEntity<Map<String, Object>> root() {
+        return ResponseEntity.ok(Map.of(
+                "service", "gymvip-comunicaciones",
+                "status", "UP",
+                "timestamp", Instant.now().toString()
+        ));
     }
 
     @GetMapping({"/api/v1/health", "/health"})
