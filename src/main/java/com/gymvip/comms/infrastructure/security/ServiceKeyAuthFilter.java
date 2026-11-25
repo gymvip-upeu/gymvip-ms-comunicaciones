@@ -13,18 +13,21 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Filtro de seguridad para autenticar comunicaciones internas entre servicios.
  * Exige que el header X-Service-Key coincida con el token compartido COMMS_SERVICE_TOKEN.
- * Rutas públicas excluidas: /api/v1/health, /actuator/** y /api/v1/webhooks/**.
+ * Rutas públicas excluidas: GET/HEAD /, /api/v1/health, /health, /actuator/** y /api/v1/webhooks/**.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ServiceKeyAuthFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(ServiceKeyAuthFilter.class);
+    private static final long UNAUTH_LOG_THROTTLE_MS = 60_000L;
 
+    private final ConcurrentHashMap<String, Long> lastWarnByIpAndPath = new ConcurrentHashMap<>();
     private final String expectedServiceToken;
     private final String commsMode;
 
@@ -45,7 +48,12 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
             return true;
         }
 
-        return path.startsWith("/api/v1/health") ||
+        if ("/".equals(path) && ("GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method))) {
+            return true;
+        }
+
+        return path.equals("/health") || path.startsWith("/health/") ||
+               path.startsWith("/api/v1/health") ||
                path.equals("/actuator/health") || path.startsWith("/actuator/health/") ||
                path.equals("/actuator/info") || path.startsWith("/actuator/info/") ||
                path.startsWith("/api/v1/webhooks");
@@ -75,8 +83,17 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        log.warn("[COMMS SECURITY] Intento de acceso no autorizado a {} desde IP {} (header X-Service-Key ausente o no coincide)",
-                request.getRequestURI(), request.getRemoteAddr());
+        long now = System.currentTimeMillis();
+        String throttleKey = request.getRemoteAddr() + "|" + request.getRequestURI();
+        Long previous = lastWarnByIpAndPath.putIfAbsent(throttleKey, now);
+        if (previous == null || (now - previous) >= UNAUTH_LOG_THROTTLE_MS) {
+            lastWarnByIpAndPath.put(throttleKey, now);
+            if (lastWarnByIpAndPath.size() > 512) {
+                lastWarnByIpAndPath.clear();
+            }
+            log.warn("[COMMS SECURITY] Intento de acceso no autorizado a {} desde IP {} (header X-Service-Key ausente o no coincide)",
+                    request.getRequestURI(), request.getRemoteAddr());
+        }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
