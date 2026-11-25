@@ -40,5 +40,8 @@ ENV TZ=America/Lima
 
 EXPOSE 8085
 
-# Iniciar Spring Boot con zona horaria America/Lima, enlace explícito a 0.0.0.0 y mapeo de puerto dinámico
-ENTRYPOINT ["sh", "-c", "java -Duser.timezone=America/Lima -Dserver.address=0.0.0.0 -Dserver.port=${PORT} -jar app.jar"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT}/api/v1/health" || exit 1
+
+# Iniciar Spring Boot con exec para entrega correcta de SIGTERM y límites JVM para contenedor
+ENTRYPOINT ["sh", "-c", "exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=25.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom -Duser.timezone=America/Lima -Dserver.address=0.0.0.0 -Dserver.port=${PORT} -jar app.jar"]
