@@ -18,11 +18,9 @@ public class SimulationEmailSender implements EmailSender {
         String deliveryId = "sim_mail_" + UUID.randomUUID().toString().substring(0, 8);
         log.info("[SIMULATION MODE] Enviando correo electrónico simulado:");
         log.info("  -> ID Entrega: {}", deliveryId);
-        log.info("  -> Destinatario: {}", to);
         log.info("  -> Asunto: {}", subject);
         log.info("  -> Plantilla: {}", template);
-        log.info("  -> Variables: {}", variables);
-        log.info("  -> Estado: ENTREGADO_SIMULADO (Cero costo, sin envío SMTP real)");
+        log.info("  -> Estado: SIMULADO (sin envío real; contenido privado omitido)");
         return deliveryId;
     }
 }

@@ -51,6 +51,7 @@ whatsapp:
   app-secret: ${WHATSAPP_APP_SECRET:}
 
 email:
+  mode: ${EMAIL_MODE:simulation}
   provider: ${EMAIL_PROVIDER:simulation} # simulation | resend
   from: ${EMAIL_FROM:notificaciones@gymvip.pe}
   resend:
