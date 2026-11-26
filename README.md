@@ -2,16 +2,16 @@
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Java Version](https://img.shields.io/badge/Java-21%20LTS-orange.svg)]()
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-green.svg)]()
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-green.svg)]()
 [![Meta WhatsApp](https://img.shields.io/badge/Meta%20Graph%20API-v25.0-success.svg)]()
 [![Resend Email](https://img.shields.io/badge/Resend%20API-v2-blue.svg)]()
-[![Branch](https://img.shields.io/badge/branch-ACOSTA--MEJORAS--Y--ACTUALIZACIONES-yellow.svg)]()
+[![Branch](https://img.shields.io/badge/branch-develop-yellow.svg)]()
 [![License](https://img.shields.io/badge/license-Academic%20Proprietary-lightgrey.svg)]()
 
 > **Ubicación en el Workspace:** `gymvip-comunicaciones/`  
 > **Organización Oficial:** [gymvip-upeu/gymvip-ms-comunicaciones](https://github.com/gymvip-upeu/gymvip-ms-comunicaciones)  
 > **Documentación Centralizada:** `../documentos/`  
-> **Fecha de Actualización:** 23 de Noviembre de 2026 | Revisión Canónica v2.5
+> **Fecha de Actualización:** 26 de Noviembre de 2026 | Revisión Estabilizada (`develop`, 38/38 pruebas H2)
 
 ---
 
