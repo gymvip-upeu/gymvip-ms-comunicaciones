@@ -101,7 +101,7 @@ public class ResendEmailSender implements EmailSender {
     }
 
     String renderContent(String template, Map<String, Object> variables) {
-        if (template != null && java.util.Set.of("account_activation", "password_reset", "password_changed").contains(template)) {
+        if (template != null && java.util.Set.of("account_activation", "company_activation", "password_reset", "password_changed").contains(template)) {
             return renderSecurity(template, variables != null ? variables : Map.of());
         }
         StringBuilder sb = new StringBuilder();
@@ -123,7 +123,8 @@ public class ResendEmailSender implements EmailSender {
 
     private String renderSecurity(String template, Map<String, Object> variables) {
         String brand = "<span translate=\"no\" class=\"notranslate\">VIP CENTER FIT</span>";
-        String heading = template.equals("account_activation")
+        boolean companyActivation = template.equals("company_activation");
+        String heading = companyActivation ? "Activa tu acceso empresarial" : template.equals("account_activation")
                 ? "Bienvenido a " + brand
                 : template.equals("password_reset")
                 ? "Restablece tu contraseña"
@@ -133,7 +134,10 @@ public class ResendEmailSender implements EmailSender {
                 .append("</p><h1 style=\"font-size:26px\">")
                 .append(heading)
                 .append("</h1>");
-        if (template.equals("account_activation")) {
+        if (companyActivation) {
+            html.append("<p>Tu solicitud de afiliación fue aprobada. Crea tu contraseña para administrar tu empresa y sus sedes.</p>")
+                    .append("<p>La invitación vence en 24 horas y solo puede utilizarse una vez.</p>");
+        } else if (template.equals("account_activation")) {
             html.append("<p>Recepción creó tu acceso al gimnasio. Activa tu cuenta y crea una contraseña propia.</p><p>Usuario de acceso: <strong>")
                     .append(escapeHtml(String.valueOf(variables.get("username"))))
                     .append("</strong></p><p>Contraseña temporal: <strong>")
@@ -153,7 +157,7 @@ public class ResendEmailSender implements EmailSender {
             }
             html.append("<p style=\"margin:28px 0\"><a style=\"background:#e8c66a;color:#101720;padding:14px 22px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold\" href=\"")
                     .append(escapeHtml(link)).append("\">")
-                    .append(template.equals("account_activation") ? "Activar mi cuenta" : "Restablecer contraseña")
+                    .append(companyActivation || template.equals("account_activation") ? "Activar mi cuenta" : "Restablecer contraseña")
                     .append("</a></p>")
                     .append("<p>Si no solicitaste este acceso, puedes ignorar este mensaje. No compartas este enlace ni tus credenciales.</p>");
         }
