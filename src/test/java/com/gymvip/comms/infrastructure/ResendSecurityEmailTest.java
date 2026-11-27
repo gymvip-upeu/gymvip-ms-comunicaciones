@@ -44,6 +44,22 @@ class ResendSecurityEmailTest {
     }
 
     @Test
+    void firstAccessAndSignupMessagesRenderWithoutActivationLinks() {
+        var sender = new ResendEmailSender("fixture", "test@example.test");
+        var credentials = Map.<String, Object>of("username", "socio@example.test",
+                "temporaryPassword", "QA<Temporal>123!", "idempotencyKey", "private-key");
+        for (String template : new String[]{"company_temporary_password", "member_signup_password"}) {
+            String html = sender.renderContent(template, credentials);
+            assertTrue(html.contains("QA&lt;Temporal&gt;123!"));
+            assertFalse(html.contains("href="));
+            assertFalse(html.contains("private-key"));
+        }
+        String html = sender.renderContent("member_signup_code", Map.of("code", "012345"));
+        assertTrue(html.contains("012345"));
+        assertFalse(html.contains("href="));
+    }
+
+    @Test
     void passwordChangedNeverIncludesPasswordOrTokenEvenIfVariablesContainThem() {
         var sender = new ResendEmailSender("fixture", "test@example.test");
         String html = sender.renderContent("password_changed", Map.of(

@@ -28,7 +28,7 @@ public class SimulationWhatsAppSender implements WhatsAppSender {
         log.info("  -> Destinatario enmascarado: {}", maskedPhone);
         log.info("  -> Plantilla: {}", request.templateName());
         log.info("  -> Idioma: {}", request.language());
-        log.info("  -> Parámetros: {}", request.parameters());
+        if (!request.authenticationCode()) log.info("  -> Parámetros: {}", request.parameters());
         log.info("  -> ID Externo simulado: {}", fakeWamid);
 
         return SendResult.success(fakeWamid, CommunicationStatus.ENVIADO);

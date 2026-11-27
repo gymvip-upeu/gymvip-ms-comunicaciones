@@ -100,7 +100,13 @@ public class MetaWhatsAppSender implements WhatsAppSender {
         templateObj.put("name", request.templateName());
         templateObj.put("language", Map.of("code", request.language() != null && !request.language().isBlank() ? request.language() : "es"));
         if (!bodyParameters.isEmpty()) {
-            templateObj.put("components", List.of(Map.of("type", "body", "parameters", bodyParameters)));
+            List<Map<String, Object>> components = new ArrayList<>();
+            components.add(Map.of("type", "body", "parameters", bodyParameters));
+            if (request.authenticationCode()) {
+                components.add(Map.of("type", "button", "sub_type", "url", "index", "0",
+                        "parameters", bodyParameters));
+            }
+            templateObj.put("components", components);
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -146,7 +152,7 @@ public class MetaWhatsAppSender implements WhatsAppSender {
             int statusCode = response.getStatusCode().value();
             boolean retryable = statusCode == 429 || (statusCode >= 500 && statusCode < 600);
             String detail = "";
-            if (response.getBody() instanceof Map<?, ?> bodyMap && bodyMap.containsKey("error")) {
+            if (!request.authenticationCode() && response.getBody() instanceof Map<?, ?> bodyMap && bodyMap.containsKey("error")) {
                 Object errObj = bodyMap.get("error");
                 if (errObj instanceof Map<?, ?> errMap && errMap.containsKey("message")) {
                     detail = ": " + errMap.get("message");
@@ -157,6 +163,7 @@ public class MetaWhatsAppSender implements WhatsAppSender {
             return SendResult.failure(errorMsg, retryable);
 
         } catch (Exception e) {
+            if (request.authenticationCode()) return SendResult.failure("Error de conexión con Meta Cloud API.", true);
             log.error("[META WHATSAPP] Excepción de red al contactar Meta API: {}", e.getMessage());
             return SendResult.failure("Error de conexión con Meta Cloud API: " + e.getMessage(), true);
         }

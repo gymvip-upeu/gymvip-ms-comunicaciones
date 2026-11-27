@@ -84,6 +84,25 @@ class MetaWhatsAppSenderTest {
     }
 
     @Test
+    void sendsOtpInAuthenticationBodyAndCopyCodeButton() {
+        RestClient.Builder builder = RestClient.builder();
+        var server = MockRestServiceServer.bindTo(builder).build();
+        var sender = new MetaWhatsAppSender("phone_123", "token_abc", "v20.0", simulationSender, builder.build());
+        server.expect(requestTo("https://graph.facebook.com/v20.0/phone_123/messages"))
+                .andExpect(jsonPath("$.template.name").value("signup_otp"))
+                .andExpect(jsonPath("$.template.components[0].parameters[0].text").value("012345"))
+                .andExpect(jsonPath("$.template.components[1].type").value("button"))
+                .andExpect(jsonPath("$.template.components[1].sub_type").value("url"))
+                .andExpect(jsonPath("$.template.components[1].index").value("0"))
+                .andExpect(jsonPath("$.template.components[1].parameters[0].text").value("012345"))
+                .andRespond(withSuccess("{\"messages\":[{\"id\":\"wamid.fixture\"}]}", MediaType.APPLICATION_JSON));
+        var result = sender.send(new WhatsAppSender.WhatsAppSendRequest("+51987654321", "signup_otp", "es",
+                List.of("012345"), com.gymvip.comms.domain.RecipientType.PHONE_NUMBER, "+51987654321", true));
+        assertEquals(CommunicationStatus.ACEPTADO_PROVEEDOR, result.status());
+        server.verify();
+    }
+
+    @Test
     @DisplayName("Debe registrar fallo no reintentable ante HTTP 400 Bad Request de Meta")
     void testNonRetryableFailureOnHttp400() {
         RestClient.Builder builder = RestClient.builder();

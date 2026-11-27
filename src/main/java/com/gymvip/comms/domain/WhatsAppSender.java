@@ -15,8 +15,18 @@ public interface WhatsAppSender {
             String language,
             List<String> parameters,
             RecipientType recipientType,
-            String recipientAddress
+            String recipientAddress,
+            boolean authenticationCode
     ) {
+        public WhatsAppSendRequest(String phoneNumber, String templateName, String language, List<String> parameters,
+                                   RecipientType recipientType, String recipientAddress) {
+            this(phoneNumber, templateName, language, parameters, recipientType, recipientAddress, false);
+        }
+
+        @Override public String toString() {
+            return "WhatsAppSendRequest[template=" + templateName + ", contenido omitido]";
+        }
+
         public WhatsAppSendRequest(String phoneNumber, String templateName, String language, List<String> parameters) {
             this(phoneNumber, templateName, language, parameters,
                     RecipientType.inferFromAddress(phoneNumber), phoneNumber);
