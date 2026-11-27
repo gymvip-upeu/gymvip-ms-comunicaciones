@@ -29,6 +29,21 @@ class ResendSecurityEmailTest {
     }
 
     @Test
+    void approvedCompanyReceivesAnActivationLinkWithoutAReusablePassword() {
+        var sender = new ResendEmailSender("fixture", "test@example.test");
+        String html = sender.renderContent("company_activation", Map.of(
+                "companyName", "Gimnasio <Sede>",
+                "link", "https://example.test/activar-empresa#token=fixture&source=email",
+                "temporaryPassword", "do-not-render"
+        ));
+        assertTrue(html.contains("Activa tu acceso empresarial"));
+        assertTrue(html.contains("Activar mi cuenta"));
+        assertTrue(html.contains("https://example.test/activar-empresa#token=fixture&amp;source=email"));
+        assertFalse(html.contains("do-not-render"));
+        assertFalse(html.contains("Gimnasio <Sede>"));
+    }
+
+    @Test
     void passwordChangedNeverIncludesPasswordOrTokenEvenIfVariablesContainThem() {
         var sender = new ResendEmailSender("fixture", "test@example.test");
         String html = sender.renderContent("password_changed", Map.of(
