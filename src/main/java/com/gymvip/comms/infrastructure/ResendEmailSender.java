@@ -101,7 +101,7 @@ public class ResendEmailSender implements EmailSender {
     }
 
     String renderContent(String template, Map<String, Object> variables) {
-        if (template != null && java.util.Set.of("account_activation", "company_activation", "company_temporary_password", "password_reset", "password_changed").contains(template)) {
+        if (template != null && java.util.Set.of("account_activation", "company_activation", "company_temporary_password", "member_signup_code", "member_signup_password", "password_reset", "password_changed").contains(template)) {
             return renderSecurity(template, variables != null ? variables : Map.of());
         }
         StringBuilder sb = new StringBuilder();
@@ -125,7 +125,9 @@ public class ResendEmailSender implements EmailSender {
         String brand = "<span translate=\"no\" class=\"notranslate\">VIP CENTER FIT</span>";
         boolean companyActivation = template.equals("company_activation");
         boolean companyTemporary = template.equals("company_temporary_password");
-        String heading = companyActivation || companyTemporary ? "Activa tu acceso empresarial" : template.equals("account_activation")
+        boolean signupCode = template.equals("member_signup_code");
+        boolean signupPassword = template.equals("member_signup_password");
+        String heading = signupCode ? "Verifica tu correo" : signupPassword ? "Tu acceso a GYM VIP" : companyActivation || companyTemporary ? "Activa tu acceso empresarial" : template.equals("account_activation")
                 ? "Bienvenido a " + brand
                 : template.equals("password_reset")
                 ? "Restablece tu contraseña"
@@ -135,7 +137,17 @@ public class ResendEmailSender implements EmailSender {
                 .append("</p><h1 style=\"font-size:26px\">")
                 .append(heading)
                 .append("</h1>");
-        if (companyTemporary) {
+        if (signupCode) {
+            html.append("<p>Usa este código en la app para verificar tu correo:</p><p><strong>")
+                    .append(escapeHtml(String.valueOf(variables.get("code"))))
+                    .append("</strong></p><p>El código vence en 10 minutos.</p>");
+        } else if (signupPassword) {
+            html.append("<p>Ingresa a la app con tu correo <strong>")
+                    .append(escapeHtml(String.valueOf(variables.get("username"))))
+                    .append("</strong> y esta contraseña temporal:</p><p><strong>")
+                    .append(escapeHtml(String.valueOf(variables.get("temporaryPassword"))))
+                    .append("</strong></p><p>Úsala una vez en las próximas 24 horas. La app te pedirá cambiarla.</p>");
+        } else if (companyTemporary) {
             html.append("<p>Tu empresa fue aprobada. Ingresa al portal administrativo con estos datos:</p><p>Usuario: <strong>")
                     .append(escapeHtml(String.valueOf(variables.get("username"))))
                     .append("</strong></p><p>Contraseña temporal: <strong>")
@@ -156,7 +168,10 @@ public class ResendEmailSender implements EmailSender {
         } else {
             html.append("<p>La contraseña de tu cuenta fue actualizada. Tus sesiones anteriores se cerraron. Si no realizaste este cambio, contacta a Recepción y recupera el acceso desde la app.</p>");
         }
-        if (!template.equals("password_changed")) {
+        if (signupCode || signupPassword || companyTemporary) {
+            html.append("<p>Si no solicitaste este acceso, ignora este mensaje. Guarda tus códigos y credenciales en privado.</p>");
+        }
+        if (!template.equals("password_changed") && !companyTemporary && !signupCode && !signupPassword) {
             String link = String.valueOf(variables.get("link"));
             var uri = URI.create(link);
             if (!java.util.Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
