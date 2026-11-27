@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,6 +32,8 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
     private final ConcurrentHashMap<String, Long> lastWarnByIpAndPath = new ConcurrentHashMap<>();
     private final String expectedServiceToken;
     private final String commsMode;
+    @Value("${GYMVIP_METRICS_TOKEN:}")
+    private String metricsToken;
 
     public ServiceKeyAuthFilter(
             @Value("${comms.service-token:gymvip-internal-token-2026}") String expectedServiceToken,
@@ -65,6 +69,19 @@ public class ServiceKeyAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        String actuatorPath = request.getRequestURI().substring(request.getContextPath().length());
+        if (actuatorPath.equals("/actuator/prometheus") || actuatorPath.startsWith("/actuator/prometheus/")) {
+            String authorization = request.getHeader("Authorization");
+            if (metricsToken != null && !metricsToken.isBlank() && authorization != null &&
+                    MessageDigest.isEqual(("Bearer " + metricsToken).getBytes(StandardCharsets.UTF_8),
+                            authorization.getBytes(StandardCharsets.UTF_8))) {
+                filterChain.doFilter(request, response);
+            } else {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            }
+            return;
+        }
+
         if ("production".equalsIgnoreCase(commsMode) &&
                 (expectedServiceToken == null || expectedServiceToken.isBlank() || "gymvip-internal-token-2026".equals(expectedServiceToken))) {
             log.error("[COMMS SECURITY CRITICAL] Intento de operación en producción con COMMS_SERVICE_TOKEN por defecto o ausente.");
