@@ -101,7 +101,7 @@ public class ResendEmailSender implements EmailSender {
     }
 
     String renderContent(String template, Map<String, Object> variables) {
-        if (template != null && java.util.Set.of("account_activation", "company_activation", "password_reset", "password_changed").contains(template)) {
+        if (template != null && java.util.Set.of("account_activation", "company_activation", "company_temporary_password", "password_reset", "password_changed").contains(template)) {
             return renderSecurity(template, variables != null ? variables : Map.of());
         }
         StringBuilder sb = new StringBuilder();
@@ -124,7 +124,8 @@ public class ResendEmailSender implements EmailSender {
     private String renderSecurity(String template, Map<String, Object> variables) {
         String brand = "<span translate=\"no\" class=\"notranslate\">VIP CENTER FIT</span>";
         boolean companyActivation = template.equals("company_activation");
-        String heading = companyActivation ? "Activa tu acceso empresarial" : template.equals("account_activation")
+        boolean companyTemporary = template.equals("company_temporary_password");
+        String heading = companyActivation || companyTemporary ? "Activa tu acceso empresarial" : template.equals("account_activation")
                 ? "Bienvenido a " + brand
                 : template.equals("password_reset")
                 ? "Restablece tu contraseña"
@@ -134,7 +135,13 @@ public class ResendEmailSender implements EmailSender {
                 .append("</p><h1 style=\"font-size:26px\">")
                 .append(heading)
                 .append("</h1>");
-        if (companyActivation) {
+        if (companyTemporary) {
+            html.append("<p>Tu empresa fue aprobada. Ingresa al portal administrativo con estos datos:</p><p>Usuario: <strong>")
+                    .append(escapeHtml(String.valueOf(variables.get("username"))))
+                    .append("</strong></p><p>Contraseña temporal: <strong>")
+                    .append(escapeHtml(String.valueOf(variables.get("temporaryPassword"))))
+                    .append("</strong></p><p>Úsala una sola vez en las próximas 24 horas. El portal te pedirá crear tu contraseña.</p>");
+        } else if (companyActivation) {
             html.append("<p>Tu solicitud de afiliación fue aprobada. Crea tu contraseña para administrar tu empresa y sus sedes.</p>")
                     .append("<p>La invitación vence en 24 horas y solo puede utilizarse una vez.</p>");
         } else if (template.equals("account_activation")) {
